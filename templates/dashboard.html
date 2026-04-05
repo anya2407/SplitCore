@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <h2>Your Groups</h2>
+
+    {% for group in groups %}
+        <p>{{ group.name }}</p>
+    {% endfor %}
+
+    <br>
+
+    <!-- Button -->
+    <button onclick="openModal()">Create A New Group</button>
+
+    <br><br>
+    <a href="/logout"><button>Logout</button></a>
+</div>
+
+
+<!-- MODAL -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <h3>Create Group</h3>
+
+        <form method="POST" action="/create_group">
+            <input type="text" name="name" placeholder="Group Name" required><br><br>
+            <button type="submit">Create</button>
+        </form>
+
+        <button onclick="closeModal()">Close</button>
+    </div>
+</div>
+
+</body>
+</html>
+
+
+<script>
+function openModal() {
+    document.getElementById("modal").style.display = "block";
+}
+
+function closeModal() {
+    document.getElementById("modal").style.display = "none";
+}
+</script>
