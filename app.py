@@ -1,6 +1,6 @@
 from flask import Flask,request,render_template,session,redirect,url_for
 from config import Config
-from models import Users,db,Group,GroupMember
+from models import Users,db,Group,GroupMember,Expense
 import bcrypt
 
 app = Flask(__name__)
@@ -95,6 +95,56 @@ def create_group():
         return redirect(url_for('dashboard'))
 
     return render_template('create_group.html')
+
+@app.route('/group/<int:group_id>')
+def group_detail(group_id):
+    if 'user_id' not in session :
+        return redirect(url_for('login'))
+    users= GroupMember.query.filter_by(group_id=group_id,user_id=session['user_id']).first()
+    if not users:
+        return redirect(url_for('dashboard'))
+
+    group=Group.query.get_or_404(group_id)
+    group_members = GroupMember.query.filter_by(group_id=group_id).all()
+    expenses=Expense.query.filter_by(group_id=group_id).all()
+    return render_template('group_detail.html',group=group,group_members=group_members,expenses=expenses)
+            
+
+@app.route('/group/<int:group_id>/add_member',methods=['POST'])
+def add_member(group_id):
+    username=request.form['username']
+
+    user=Users.query.filter_by(name=username).first()
+    if not user:
+        return "user does not exist"
+    group=GroupMember.query.filter_by(user_id=user.user_id,group_id=group_id).first()
+    if group:
+        return "user already exists"
+    
+    new=GroupMember(user_id=user.user_id,group_id=group_id)
+    db.session.add(new)
+    db.session.commit()
+    return redirect(url_for('group_detail',group_id=group_id))
+
+@app.route('/group/<int:group_id>/add_expense',methods=['POST'])
+def add_expense(group_id):
+    description=request.form['description']
+    amount=float(request.form['amount'])
+    paid_by=int(request.form['paid_by']
+    )
+    expense=Expense(
+        description=description,
+        amount=amount,
+        group_id=group_id,
+        paid_by=paid_by
+    )
+    db.session.add(expense)
+    db.session.commit()
+
+    return redirect(url_for('group_detail',group_id=group_id))
+
+
+
 
 
 if __name__== "__main__":

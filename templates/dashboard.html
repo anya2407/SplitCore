@@ -10,7 +10,9 @@
     <h2>Your Groups</h2>
 
     {% for group in groups %}
-        <p>{{ group.name }}</p>
+        <a href="{{ url_for('group_detail', group_id=group.group_id) }}">
+        <button>{{ group.name }}</button>
+        </a>
     {% endfor %}
 
     <br>
