@@ -1,88 +1,182 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>{{group.name}}</title>
+    <title>{{ group.name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<h1>{{group.name}}</h1>
-<h2>Members</h2>  <button onclick="openModal()">add Member</button>
-<div id="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
 
-    <div style="background:white; padding:20px; width:300px; margin:100px auto; border-radius:10px;">
-        
+<!-- ================= MEMBERS ================= -->
+<div class="section">
+    <h2>Members</h2>
+    <button onclick="openModal()">Add Member</button>
+
+    <ul>
+        {% for member in group_members %}
+        <li>
+            {% if member.is_active %}
+            {{ member.user.name }}
+            
+            <form method="POST" action="{{url_for('delete_member',group_id=group.group_id)}}">
+                <input type="hidden" name="person" value="{{member.user_id}}">
+                <button type="submit">
+                    delete
+                </button>
+            </form>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<!-- ADD MEMBER MODAL -->
+<div id="modal" class="modal">
+    <div class="modal-content">
         <h3>Add Member</h3>
 
-        <form method="POST" action="{{ url_for('add_member', group_id=group.group_id) }}">
-        <input type="text" name="username" placeholder="Enter name" required>
-        <button type="submit">Add</button>
+        <form method="POST" action="{{url_for('add_member', group_id=group.group_id)}}">
+            <input type="text" name="username" placeholder="Enter name" required>
+            <button type="submit">Add</button>
         </form>
 
-        <br>
         <button onclick="closeModal()">Close</button>
-
     </div>
 </div>
-<ul>
-{% if group_members %}
-    {% for member in group_members %}
-    <li>
-        {{member.user.name}}
-        <button>delete</button>
-    </li>
-    {% endfor %}
-{% endif%}
-</ul>
 
+<!-- ================= EXPENSES ================= -->
+<div class="section">
+    <h2>Expenses</h2>
+    <button onclick="openExpenseModal()">Add Expense</button>
 
-<h2>Expenses</h2>
+    <ul>
+        {% for exp in expenses %}
+            {% if not exp.is_settlement %}
+                <li>
+                    {{ exp.description }} - ₹{{ exp.amount }}
+                    <span>(Paid by {{ exp.payer.name }})</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</div>
 
-<button onclick="openExpenseModal()">Add Expense</button>
-<div id="expenseModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
+<!-- ADD EXPENSE MODAL -->
+<div id="expenseModal" class="modal">
+    <div class="modal-content">
 
-    <div style="background:white; padding:20px; width:300px; margin:100px auto; border-radius:10px;">
-        
         <h3>Add Expense</h3>
 
         <form method="POST" action="{{ url_for('add_expense', group_id=group.group_id) }}">
-            
-            <input type="text" name="description" placeholder="Description" required>
-            <input type="number" name="amount" placeholder="Amount" required>
 
-            <select name="paid_by">
+            <div class="form-group">
+                <input type="text" name="description" placeholder="Description" required>
+            </div>
+
+            <div class="form-group">
+                <input type="number" name="amount" placeholder="Amount" required>
+            </div>
+
+            <div class="form-group">
+                <label>Paid by:</label>
+                <select name="paid_by">
+                    {% for member in group_members %}
+                        {% if member.is_active %}
+                            <option value="{{ member.user.user_id }}">
+                                {{ member.user.name }}
+                            </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Split type:</label>
+                <select name="split_type" onchange="toggleSplit(this.value)">
+                    <option value="equal">Equal</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+
+            <div class="form-group participants">
+                <label>Participants:</label>
                 {% for member in group_members %}
-                    <option value="{{ member.user.user_id }}">
+                {% if member.is_active %}
+                    <label>
+                        <input type="checkbox"
+                               class="participant-checkbox"
+                               name="participants"
+                               value="{{ member.user.user_id }}"
+                               onchange="updateCustomSplit()">
                         {{ member.user.name }}
-                    </option>
+                    </label>
+                {% endif %}
                 {% endfor %}
-            </select>
+            </div>
 
-            <button type="submit">Add</button>
+            <div id="customSplit" style="display:none;"></div>
+
+            <button type="submit">Add Expense</button>
         </form>
 
         <button onclick="closeExpenseModal()">Close</button>
     </div>
 </div>
-<ul>
-{% if expenses %}
-    {% for exp in expenses %}
-        <li>
-            {{ exp.description }} - ₹{{ exp.amount }}
-            (Paid by {{ exp.payer.name }})
+
+<!-- ================= BALANCES ================= -->
+<div class="section">
+    <h2>Balances</h2>
+    <ul>
+    {% for d,c,a in transactions %}
+        <li> {{names[d]}} has to pay rs{{a}} to {{names[c]}} 
+            <form method="POST" action="{{url_for('settle',group_id=group.group_id)}}">
+                <input type="hidden" name="debitor" value="{{d}}">
+                <input type="hidden" name="creditor" value="{{c}}">
+                <input type="hidden" name="amount" value="{{a}}">
+
+                <button type="submit">
+                    settle
+                </button>
+            </form>
         </li>
     {% endfor %}
-{% else %}
-    <li>No expenses yet</li>
-{% endif %}
-</ul>
-<h2>Balances</h2>
-
-<p>Coming soon...</p>
-
-</body>
-</html>
+    </ul>
+</div>
+<!-- ================= JS ================= -->
 
 <script>
+function updateCustomSplit() {
+    const container = document.getElementById("customSplit");
+    container.innerHTML = "";
+
+    const checked = document.querySelectorAll(".participant-checkbox:checked");
+
+    checked.forEach(cb => {
+        const userId = cb.value;
+        const userName = cb.parentElement.textContent.trim();
+
+        const row = document.createElement("div");
+        row.className = "split-row";
+
+        const label = document.createElement("span");
+        label.innerText = userName;
+
+        const input = document.createElement("input");
+        input.type = "number";
+        input.name = "split_" + userId;
+        input.placeholder = "Amount";
+
+        row.appendChild(label);
+        row.appendChild(input);
+
+        container.appendChild(row);
+    });
+}
+
+function toggleSplit(value) {
+    const div = document.getElementById("customSplit");
+    div.style.display = (value === "custom") ? "block" : "none";
+}
+
 function openModal() {
     document.getElementById("modal").style.display = "block";
 }
@@ -90,8 +184,7 @@ function openModal() {
 function closeModal() {
     document.getElementById("modal").style.display = "none";
 }
-</script>
-<script>
+
 function openExpenseModal() {
     document.getElementById("expenseModal").style.display = "block";
 }
@@ -100,3 +193,6 @@ function closeExpenseModal() {
     document.getElementById("expenseModal").style.display = "none";
 }
 </script>
+
+</body>
+</html>
