@@ -1,54 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard – SplitCore</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-<div class="container">
-    <h2>Your Groups</h2>
+<nav class="navbar">
+    <div class="navbar-brand">⚡ Split<span>Core</span></div>
+    <a href="/logout" class="btn btn-ghost">Logout</a>
+</nav>
 
-    {% for group in groups %}
-        <a href="{{ url_for('group_detail', group_id=group.group_id) }}">
-        <button>{{ group.name }}</button>
-        </a>
-    {% endfor %}
+<div style="max-width: 560px; margin: 40px auto; padding: 0 16px;">
 
-    <br>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+        <h2>Your groups</h2>
+        <button class="btn btn-primary" onclick="openModal()">+ New group</button>
+    </div>
 
-    <!-- Button -->
-    <button onclick="openModal()">Create A New Group</button>
+    {% if groups %}
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            {% for group in groups %}
+            <a href="{{ url_for('group_detail', group_id=group.group_id) }}" style="text-decoration: none;">
+                <div class="card" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="avatar">{{ group.name[0].upper() }}</div>
+                        <span style="font-weight: 500; color: var(--text-primary);">{{ group.name }}</span>
+                    </div>
+                    <span style="color: var(--text-muted); font-size: 1rem;">→</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card text-center" style="padding: 48px 24px;">
+            <div style="font-size: 2rem; margin-bottom: 12px;">🧾</div>
+            <h3 style="margin-bottom: 6px;">No groups yet</h3>
+            <p>Create a group to start splitting expenses.</p>
+        </div>
+    {% endif %}
 
-    <br><br>
-    <a href="/logout"><button>Logout</button></a>
 </div>
-
 
 <!-- MODAL -->
 <div id="modal" class="modal">
     <div class="modal-content">
-        <h3>Create Group</h3>
-
+        <button class="modal-close" onclick="closeModal()">✕</button>
+        <h3>New group</h3>
         <form method="POST" action="/create_group">
-            <input type="text" name="name" placeholder="Group Name" required><br><br>
-            <button type="submit">Create</button>
+            <div class="form-group">
+                <label for="name">Group name</label>
+                <input type="text" id="name" name="name" placeholder="e.g. Goa Trip, Flat 4B" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Create group</button>
         </form>
-
-        <button onclick="closeModal()">Close</button>
     </div>
 </div>
 
-</body>
-</html>
-
-
 <script>
 function openModal() {
-    document.getElementById("modal").style.display = "block";
+    document.getElementById("modal").classList.add("open");
 }
-
 function closeModal() {
-    document.getElementById("modal").style.display = "none";
+    document.getElementById("modal").classList.remove("open");
 }
+document.getElementById("modal").addEventListener("click", function(e) {
+    if (e.target === this) closeModal();
+});
 </script>
+
+</body>
+</html>

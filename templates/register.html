@@ -1,23 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Register</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register – SplitCore</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
 <div class="container">
-    <h2>Register</h2>
+    <h2>Create account</h2>
+    <p>Join SplitCore and start splitting expenses.</p>
 
     <form method="POST" action="/register">
-        <input type="text" name="name" placeholder="Name" required><br>
-        <input type="email" name="email" placeholder="Email" required><br>
-        <input type="password" name="password" placeholder="Password" required><br>
-        <button type="submit">Register</button>
+        <div class="form-group">
+            <label for="name">Full name</label>
+            <input type="text" id="name" name="name" placeholder="Anya Arora" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Create account</button>
     </form>
 
-    <p>Already a user?</p>
-    <a href="/login"><button>Login</button></a>
+    <div class="divider" style="margin-top: 24px;"></div>
+    <p style="margin-top: 16px; font-size: 0.875rem;">Already have an account? <a href="/login">Sign in</a></p>
 </div>
 
 </body>

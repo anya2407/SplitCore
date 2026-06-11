@@ -1,18 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Create Group</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Group – SplitCore</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-    <h2>Create Group</h2>
+    <nav class="navbar">
+        <div class="navbar-brand">⚡ Split<span>Core</span></div>
+        <a href="/dashboard" class="btn btn-ghost">← Dashboard</a>
+    </nav>
 
-    <form method="POST" action="/create_group">
-        <label>Group Name:</label><br>
-        <input type="text" name="name" required><br><br>
+    <div class="container">
+        <h2>New group</h2>
+        <p>Give your group a name to get started.</p>
 
-        <button type="submit">Create</button>
-    </form>
+        <form method="POST" action="/create_group">
+            <div class="form-group">
+                <label for="name">Group name</label>
+                <input type="text" id="name" name="name" placeholder="e.g. Goa Trip, Flat 4B" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Create group</button>
+        </form>
+    </div>
 
 </body>
 </html>
