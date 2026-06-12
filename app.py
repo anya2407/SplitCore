@@ -1,5 +1,5 @@
 from flask import Flask,request,render_template,session,redirect,url_for
-from config import Conf
+from conf import Config
 from models import Users,db,Group,GroupMember,Expense,ExpenseSplit
 import bcrypt
 from pydantic import BaseModel, EmailStr, Field
@@ -58,6 +58,9 @@ def register():
             return str(e), 400
 
         hashed_password = bcrypt.hashpw(data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        existing_user = Users.query.filter_by(email=data.email).first()
+        if existing_user:
+            abort(409, description="Email already registered")
         user = Users(name=data.name, email=data.email, password=hashed_password)
         db.session.add(user)
         db.session.commit()
@@ -135,11 +138,12 @@ def group_detail(group_id):
         return redirect(url_for('dashboard'))
 
     group=Group.query.get_or_404(group_id)
-    group_members = GroupMember.query.filter_by(group_id=group_id, is_active=True).all()
+    all_members = GroupMember.query.filter_by(group_id=group_id).all()
     expenses=Expense.query.filter_by(group_id=group_id).all()
+    active_members = GroupMember.query.filter_by(group_id=group_id,is_active=True).all()
     balances={}
     names={}
-    for m in group_members:
+    for m in all_members:
         balances[m.user_id]=0
         names[m.user_id]=m.user.name
     for e in expenses:
@@ -153,8 +157,11 @@ def group_detail(group_id):
                 balances[exp.user_id] += exp.amount
     
     transactions=manage_transactions(balances)
+    print("ACTIVE MEMBERS:")
+    for m in active_members:
+        print(m.user.name, m.is_active)
 
-    return render_template('group_detail.html',group=group,group_members=group_members,expenses=expenses,transactions=transactions,names=names)
+    return render_template('group_detail.html',group=group,group_members=active_members,expenses=expenses,transactions=transactions,names=names)
             
 def manage_transactions(balances):
     deb=[]
@@ -197,25 +204,34 @@ def add_member(group_id):
     user = Users.query.filter_by(name=data.username).first()
     if not user:
         return abort(404,"user does not exist")
-    existing = GroupMember.query.filter_by(user_id=user.user_id, group_id=group_id, is_active=True).first()
+    existing = GroupMember.query.filter_by(user_id=user.user_id, group_id=group_id).first()
     if existing:
-        return abort(400,"user already in group")
+        if existing.is_active:
+            abort(400, description="User already in group")
+
+        existing.is_active = True
+        db.session.commit()
+
+        return redirect(url_for('group_detail', group_id=group_id))
 
     new = GroupMember(user_id=user.user_id, group_id=group_id)
     db.session.add(new)
     db.session.commit()
     return redirect(url_for('group_detail', group_id=group_id))
 
-@app.route('/group/<int:group_id>/delete_member',methods=['POST'])
+@app.route('/group/<int:group_id>/delete_member', methods=['POST'])
 def delete_member(group_id):
-    group=Group.query.get_or_404(group_id)
-    group_members = GroupMember.query.filter_by(group_id=group_id, is_active=True).all()
-    expenses=Expense.query.filter_by(group_id=group_id).all()
-    balances={}
-    names={}
-    for m in group_members:
-        balances[m.user_id]=0
-        names[m.user_id]=m.user.name
+
+    # Use ALL members for balance calculation
+    all_members = GroupMember.query.filter_by(group_id=group_id).all()
+
+    expenses = Expense.query.filter_by(group_id=group_id).all()
+
+    balances = {}
+
+    for m in all_members:
+        balances[m.user_id] = 0
+
     for e in expenses:
 
         if not e.is_settlement:
@@ -229,15 +245,31 @@ def delete_member(group_id):
 
             for exp in e.splits:
                 balances[exp.user_id] += exp.amount
-    person=int(request.form['person'])
-    if balances[person]!=0:
-        return abort (400,description="cant delete a person with pending balances")
-    member=GroupMember.query.filter_by(group_id=group_id,user_id=person).first()
-    member.is_active=False
-    db.session.commit()
-    if not member.is_active:print("hello")
 
-    return redirect(url_for('group_detail',group_id=group_id)) 
+    person = int(request.form['person'])
+
+    if person not in balances:
+        abort(404, description="Member not found")
+
+    if abs(balances[person]) > 0.01:
+        abort(400, description="Can't delete a member with pending balances")
+
+    member = GroupMember.query.filter_by(
+        group_id=group_id,
+        user_id=person
+    ).first()
+
+    if not member:
+        abort(404, description="Member not found")
+
+    member.is_active = False
+
+    db.session.commit()
+    db.session.refresh(member)
+
+    print("After:", member.is_active)
+
+    return redirect(url_for('group_detail', group_id=group_id))
 
 
 @app.route('/group/<int:group_id>/add_expense', methods=['POST'])
