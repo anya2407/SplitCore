@@ -2,8 +2,9 @@ from flask import Flask,request,render_template,session,redirect,url_for
 from config import Config
 from models import Users,db,Group,GroupMember,Expense,ExpenseSplit
 import bcrypt
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field
 from pydantic import ValidationError
+from flask import abort
 
 
 class RegisterSchema(BaseModel):
@@ -22,6 +23,15 @@ class GroupSchema(BaseModel):
 
 class MemberSchema(BaseModel):
     username: str = Field(min_length=1)
+
+class LoginSchema(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1)
+
+class SettleSchema(BaseModel):
+    debitor: int
+    creditor: int
+    amount: float = Field(gt=0)
 
 
 app = Flask(__name__)
@@ -64,7 +74,7 @@ def login():
                 password=request.form['password']
             )
         except ValidationError as e:
-            return str(e), 400
+            return abort(400, description=str(e))
 
         user = Users.query.filter_by(email=data.email).first()
         if user:
@@ -72,8 +82,8 @@ def login():
                 session['user_id'] = user.user_id
                 return redirect(url_for('dashboard'))
             else:
-                return "incorrect password", 401
-        return "user does not exist, register first", 404
+                return abort(401, description="incorrect password")
+        return abort(404, description="user does not exist, register first")
     return render_template('login.html')
 
 @app.route('/dashboard')
@@ -104,7 +114,7 @@ def create_group():
         try:
             data = GroupSchema(name=request.form['name'])
         except ValidationError as e:
-            return str(e), 400
+            return abort(400,description=str(e))
 
         group = Group(name=data.name, created_by=session['user_id'])
         db.session.add(group)
@@ -182,14 +192,14 @@ def add_member(group_id):
     try:
         data = MemberSchema(username=request.form['username'])
     except ValidationError as e:
-        return str(e), 400
+        return abort (400,str(e))
 
     user = Users.query.filter_by(name=data.username).first()
     if not user:
-        return "user does not exist", 404
+        return abort(404,"user does not exist")
     existing = GroupMember.query.filter_by(user_id=user.user_id, group_id=group_id, is_active=True).first()
     if existing:
-        return "user already in group", 400
+        return abort(400,"user already in group")
 
     new = GroupMember(user_id=user.user_id, group_id=group_id)
     db.session.add(new)
@@ -221,7 +231,7 @@ def delete_member(group_id):
                 balances[exp.user_id] += exp.amount
     person=int(request.form['person'])
     if balances[person]!=0:
-        return "cant delete a person with pending balances"
+        return abort (400,description="cant delete a person with pending balances")
     member=GroupMember.query.filter_by(group_id=group_id,user_id=person).first()
     member.is_active=False
     db.session.commit()
@@ -247,7 +257,7 @@ def add_expense(group_id):
     paid_for = request.form.getlist('participants')
     paid_for = [int(p) for p in paid_for if p]
     if not paid_for:
-        return "select at least one participant", 400
+        return abort(400,"select at least one participant")
 
     expense = Expense(
         description=data.description,
@@ -273,7 +283,7 @@ def add_expense(group_id):
             splits.append(ExpenseSplit(expense_id=expense.id, user_id=uid, amount=amt))
         if abs(total - data.amount) > 0.01:
             db.session.rollback()
-            return "split amounts do not match total", 400
+            return abort(400,"split amounts do not match total")
         for s in splits:
             db.session.add(s)
 
@@ -312,4 +322,4 @@ def settle(group_id):
     return redirect(url_for('group_detail', group_id=group_id))
 
 if __name__== "__main__":
-    app.run(host='0.0.0.0',debug=True)
+    app.run(host='0.0.0.0',debug=False)
