@@ -1,5 +1,5 @@
 from flask import Flask,request,render_template,session,redirect,url_for
-from config import Config
+from config import Conf
 from models import Users,db,Group,GroupMember,Expense,ExpenseSplit
 import bcrypt
 from pydantic import BaseModel, EmailStr, Field
